@@ -6,9 +6,9 @@ import FilterBar from './components/FilterBar';
 import ItemList, { sortItems } from './components/ItemList';
 import ReviewCard from './components/ReviewCard';
 import Statistics from './components/Statistics';
-import useLocalStorage from './hooks/useLocalStorage';
+import { fetchDataFromApi, saveDataToApi } from './utils/api';
 import { calculateNextReview, DEFAULT_EASINESS, isDue, toDateKey } from './utils/spacedRepetition';
-import { defaultData, exportData, importData, STORAGE_KEY } from './utils/storage';
+import { defaultData, exportData, importData, loadData, saveData } from './utils/storage';
 
 function computeStreak(reviewLog) {
   if (reviewLog.length === 0) return 0;
@@ -49,9 +49,11 @@ function createNewItem(formData) {
 }
 
 export default function App() {
-  const [data, setData] = useLocalStorage(STORAGE_KEY, defaultData);
+  const [data, setData] = useState(defaultData);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [editingItemId, setEditingItemId] = useState(null);
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [syncError, setSyncError] = useState('');
   const [filters, setFilters] = useState({
     search: '',
     category: 'all',
@@ -65,10 +67,55 @@ export default function App() {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    let mounted = true;
+
+    async function hydrateData() {
+      const cachedData = loadData();
+
+      try {
+        const remoteData = await fetchDataFromApi();
+        if (!mounted) return;
+        setData(remoteData);
+        saveData(remoteData);
+      } catch {
+        if (!mounted) return;
+        setData(cachedData);
+        setSyncError('Backend unavailable. Using cached local data.');
+      } finally {
+        if (mounted) setIsHydrated(true);
+      }
+    }
+
+    hydrateData();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const root = document.documentElement;
     if (data.settings.darkMode) root.classList.add('dark');
     else root.classList.remove('dark');
   }, [data.settings.darkMode]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    let cancelled = false;
+    saveData(data);
+
+    saveDataToApi(data)
+      .then(() => {
+        if (!cancelled) setSyncError('');
+      })
+      .catch(() => {
+        if (!cancelled) setSyncError('Sync failed. Changes are only saved locally right now.');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data, isHydrated]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -289,6 +336,11 @@ export default function App() {
         {toast && (
           <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-200">
             {toast}
+          </div>
+        )}
+        {syncError && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+            {syncError}
           </div>
         )}
 

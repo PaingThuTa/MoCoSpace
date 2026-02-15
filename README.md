@@ -1,6 +1,6 @@
 # MoCoSpace
 
-MoCoSpace is a frontend-only spaced repetition web app for coding and learning topics. It uses a lightweight SM-2 based review algorithm, localStorage persistence, and a responsive React + Tailwind UI.
+MoCoSpace is a spaced repetition web app for coding and learning topics. It uses a lightweight SM-2 based review algorithm, MongoDB-backed persistence, and a responsive React + Tailwind UI.
 
 ## Features
 
@@ -15,16 +15,18 @@ MoCoSpace is a frontend-only spaced repetition web app for coding and learning t
 - Due-only study mode with one-card-at-a-time review
 - Dashboard with due count, streak, reviewed today, and mastered items
 - Filter/search/sort item collection
-- LocalStorage auto-save
+- MongoDB-backed auto-save
 - JSON export/import
 - Optional dark mode toggle
 
 ## Tech Stack
 
 - React (hooks) + Vite
+- Express API
+- MongoDB + Mongoose
 - Tailwind CSS
 - lucide-react icons
-- localStorage
+- localStorage fallback cache (if API is unavailable)
 
 ## Project Structure
 
@@ -54,19 +56,33 @@ src/
 npm install
 ```
 
-2. Start development server:
+2. Create env file:
+
+```bash
+cp .env.example .env
+```
+
+3. Start MongoDB (local or Atlas), then set `MONGODB_URI` in `.env`.
+
+4. Start API server:
+
+```bash
+npm run dev:api
+```
+
+5. Start frontend development server:
 
 ```bash
 npm run dev
 ```
 
-3. Build for production:
+6. Build for production:
 
 ```bash
 npm run build
 ```
 
-4. Preview production build:
+7. Preview production build:
 
 ```bash
 npm run preview
@@ -96,8 +112,7 @@ EF = EF + (0.1 - (5 - rating) × (0.08 + (5 - rating) × 0.02))
 
 ## Data Persistence
 
-All application data is stored in localStorage under key:
-
-- `mocospace:v1`
+- Primary storage: MongoDB (`GET/PUT /api/data`)
+- Local fallback cache key: `mocospace:v1`
 
 Use Export to download a backup JSON and Import to restore data.

@@ -8,19 +8,26 @@ export const defaultData = {
   },
 };
 
+export function normalizeData(data = {}) {
+  return {
+    ...defaultData,
+    ...data,
+    items: Array.isArray(data.items) ? data.items : defaultData.items,
+    reviewLog: Array.isArray(data.reviewLog) ? data.reviewLog : defaultData.reviewLog,
+    settings: {
+      ...defaultData.settings,
+      ...(data.settings || {}),
+      darkMode: Boolean(data?.settings?.darkMode),
+    },
+  };
+}
+
 export function loadData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultData;
     const parsed = JSON.parse(raw);
-    return {
-      ...defaultData,
-      ...parsed,
-      settings: {
-        ...defaultData.settings,
-        ...(parsed.settings || {}),
-      },
-    };
+    return normalizeData(parsed);
   } catch {
     return defaultData;
   }
@@ -49,14 +56,7 @@ export function importData(file) {
         if (!parsed || typeof parsed !== 'object') {
           throw new Error('Invalid JSON format.');
         }
-        resolve({
-          ...defaultData,
-          ...parsed,
-          settings: {
-            ...defaultData.settings,
-            ...(parsed.settings || {}),
-          },
-        });
+        resolve(normalizeData(parsed));
       } catch (error) {
         reject(error);
       }
